@@ -20,6 +20,7 @@ public sealed class SchoolDbContext(DbContextOptions<SchoolDbContext> options) :
             entity.HasKey(schoolClass => schoolClass.Id);
             entity.Property(schoolClass => schoolClass.Id).HasMaxLength(40);
             entity.Property(schoolClass => schoolClass.Name).HasMaxLength(120).IsRequired();
+            entity.Property(schoolClass => schoolClass.IsActive).HasDefaultValue(true);
         });
 
         modelBuilder.Entity<AdmissionHold>(entity =>

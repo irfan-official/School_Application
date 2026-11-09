@@ -7,5 +7,6 @@
 - The database connection is supplied with `ConnectionStrings__DefaultConnection`; Docker Compose provides a local-development value.
 - The frontend calls the backend at `VITE_API_BASE_URL` and stores the entered student ID in the browser so applications remain visible after refresh; this ID is not authentication.
 - The payment action in the assignment is simulated: confirming a valid hold immediately changes its status to `CONFIRMED`.
-- Expired and cancelled holds remain in the database and in the student's hold history; only `HELD` and `CONFIRMED` holds consume seats.
+- Expired and cancelled holds remain in the database and in the student's hold history for active classes; only `HELD` and `CONFIRMED` holds consume seats.
+- Class capacity cannot be reduced below its current held plus confirmed seats. Deleting a class is a soft delete: archived classes are hidden from the Admin and student class lists, existing application history is retained in the database but hidden from the student's application list, and outstanding held applications are expired.
 - PostgreSQL is the source of truth. No demo records are inserted, so the class list starts empty and survives application restarts.

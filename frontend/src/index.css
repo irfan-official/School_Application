@@ -127,6 +127,7 @@ h1,h2,h3,p { margin-top: 0; }
 .text-green { margin-right: 3px; color: #38ad7b; font-size: 7px; }
 .stat-decoration { position: absolute; right: 9px; bottom: -13px; color: #f5f7f6; font-size: 48px; font-weight: 700; letter-spacing: -3px; }
 .content-grid { display: grid; grid-template-columns: minmax(0, 1.68fr) minmax(280px, .92fr); gap: 16px; align-items: start; }
+#class-section, #application-section { scroll-margin-top: 89px; }
 .panel { min-width: 0; border: 1px solid #eaf0ef; border-radius: 11px; background: #fff; }
 .class-panel { padding: 19px 19px 15px; }
 .application-panel { padding: 19px 17px 15px; }
@@ -248,7 +249,7 @@ h1,h2,h3,p { margin-top: 0; }
 .admin-demo-notice { display: flex; align-items: flex-start; gap: 7px; margin-top: 16px; padding: 10px; color: #99732d; border: 1px solid #f4e8c9; border-radius: 6px; background: #fffaf0; font-size: 9px; line-height: 1.6; }
 .admin-demo-notice svg { flex: 0 0 auto; margin-top: 1px; }
 .admin-class-list { margin-top: 15px; border-top: 1px solid #eff2f1; }
-.admin-class-row { display: flex; min-width: 0; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid #eff2f1; }
+.admin-class-row { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid #eff2f1; }
 .admin-class-row .class-icon { width: 34px; height: 34px; flex: 0 0 auto; }
 .admin-class-name { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 4px; }
 .admin-class-name strong { overflow: hidden; color: #394d51; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
@@ -256,6 +257,18 @@ h1,h2,h3,p { margin-top: 0; }
 .admin-capacity { display: flex; flex: 0 0 auto; flex-direction: column; align-items: flex-end; gap: 3px; }
 .admin-capacity strong { color: #248b72; font-size: 12px; }
 .admin-capacity small { color: #9ba7a9; font-size: 8px; }
+.admin-row-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 5px; }
+.admin-action-button { min-height: 28px; padding: 0 8px; color: #526669; border: 1px solid #e5ece9; border-radius: 6px; background: #fff; font-size: 9px; font-weight: 600; }
+.admin-icon-button { display: inline-grid; width: 30px; min-height: 30px; padding: 0; place-items: center; }
+.admin-action-button:hover:not(:disabled) { background: #f5faf8; }
+.admin-action-button:disabled { opacity: .6; }
+.admin-action-button.primary { color: #fff; border-color: #167d71; background: #167d71; }
+.admin-action-button.danger { color: #a64e48; border-color: #f0dfdc; background: #fff; }
+.admin-edit-form,.admin-delete-confirm { display: flex; flex-basis: 100%; flex-wrap: wrap; align-items: end; gap: 10px; padding: 10px; border: 1px solid #edf2ef; border-radius: 7px; background: #fbfdfc; }
+.admin-edit-form label { display: grid; min-width: 110px; flex: 1; gap: 5px; color: #596c70; font-size: 9px; font-weight: 600; }
+.admin-edit-form input { width: 100%; height: 31px; padding: 0 8px; color: #34494d; border: 1px solid #e5ece9; border-radius: 5px; outline: 0; background: #fff; font-size: 10px; font-weight: 400; }
+.admin-edit-form input:focus { border-color: #83b9aa; box-shadow: 0 0 0 3px #eaf5f1; }
+.admin-delete-confirm { justify-content: space-between; color: #824a46; font-size: 10px; }
 .toast { position: fixed; right: 24px; bottom: 22px; z-index: 5; display: flex; max-width: min(420px, calc(100vw - 32px)); align-items: center; gap: 10px; padding: 12px 13px; color: #37504b; border: 1px solid #dcebe3; border-radius: 9px; background: #fff; box-shadow: 0 9px 35px #173a3020; font-size: 11px; animation: toast-in .22s ease-out; }
 .toast-error { color: #824a46; border-color: #f1d9d5; }
 .toast-icon { display: grid; width: 24px; height: 24px; flex: 0 0 auto; place-items: center; color: #278267; border-radius: 50%; background: #eaf6ef; }

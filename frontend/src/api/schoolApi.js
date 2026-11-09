@@ -75,6 +75,20 @@ export const schoolApi = {
     return mapClass(schoolClass)
   },
 
+  async updateClass(classId, { name, totalSeats }) {
+    const schoolClass = await request(`/classes/${encodeURIComponent(classId)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ name, totalSeats: Number(totalSeats) }),
+    })
+    return mapClass(schoolClass)
+  },
+
+  async deleteClass(classId) {
+    return request(`/classes/${encodeURIComponent(classId)}`, {
+      method: 'DELETE',
+    })
+  },
+
   async applyForClass(studentId, classId) {
     const hold = await request(`/classes/${encodeURIComponent(classId)}/holds`, {
       method: 'POST',

@@ -20,6 +20,8 @@ public static partial class SchoolAdmissionEndpoints
         app.MapPost("/classes", CreateClassAsync);
         app.MapGet("/classes", GetClassesAsync);
         app.MapGet("/classes/{classId}", GetClassAsync);
+        app.MapPut("/classes/{classId}", UpdateClassAsync);
+        app.MapDelete("/classes/{classId}", DeleteClassAsync);
         app.MapPost("/classes/{classId}/holds", CreateHoldAsync);
         app.MapGet("/holds/{holdId}", GetHoldAsync);
         app.MapPost("/holds/{holdId}/confirm", ConfirmHoldAsync);
@@ -30,7 +32,7 @@ public static partial class SchoolAdmissionEndpoints
     }
 
     private static async Task<IResult> CreateClassAsync(
-        CreateClassRequest? request,
+        ClassWriteRequest? request,
         SchoolDbContext database,
         CancellationToken cancellationToken)
     {
@@ -61,6 +63,84 @@ public static partial class SchoolAdmissionEndpoints
             schoolClass.TotalSeats));
     }
 
+    private static async Task<IResult> UpdateClassAsync(
+        string classId,
+        ClassWriteRequest? request,
+        SchoolDbContext database,
+        CancellationToken cancellationToken)
+    {
+        if (request is null || string.IsNullOrWhiteSpace(request.Name))
+        {
+            return BadRequest("ক্লাসের নাম দিতে হবে।");
+        }
+
+        var name = request.Name.Trim();
+        if (name.Length > 120 || request.TotalSeats is < 1 or > 500)
+        {
+            return BadRequest("ক্লাসের নাম সর্বোচ্চ ১২০ অক্ষর এবং আসনসংখ্যা ১–৫০০ হতে হবে।");
+        }
+
+        await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+        var classExists = await LockRowAsync(database, "Classes", classId, cancellationToken);
+        var schoolClass = classExists
+            ? await database.Classes.SingleOrDefaultAsync(
+                item => item.Id == classId && item.IsActive,
+                cancellationToken)
+            : null;
+        if (schoolClass is null)
+        {
+            return NotFound("ক্লাসটি খুঁজে পাওয়া যায়নি।");
+        }
+
+        await ExpireClassHoldsAsync(database, classId, DateTimeOffset.UtcNow, cancellationToken);
+        var heldSeats = await database.Holds.CountAsync(
+            hold => hold.ClassId == classId && hold.Status == HoldStatuses.Held,
+            cancellationToken);
+        var confirmedSeats = await database.Holds.CountAsync(
+            hold => hold.ClassId == classId && hold.Status == HoldStatuses.Confirmed,
+            cancellationToken);
+        if (request.TotalSeats < heldSeats + confirmedSeats)
+        {
+            return Conflict($"আসনসংখ্যা {heldSeats + confirmedSeats}-এর কম করা যাবে না, কারণ এই সংখ্যক আসন হোল্ড বা নিশ্চিত রয়েছে।");
+        }
+
+        schoolClass.Name = name;
+        schoolClass.TotalSeats = request.TotalSeats;
+        await database.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return Results.Ok(ToClassResponse(schoolClass, heldSeats, confirmedSeats));
+    }
+
+    private static async Task<IResult> DeleteClassAsync(
+        string classId,
+        SchoolDbContext database,
+        CancellationToken cancellationToken)
+    {
+        await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+        var classExists = await LockRowAsync(database, "Classes", classId, cancellationToken);
+        var schoolClass = classExists
+            ? await database.Classes.SingleOrDefaultAsync(
+                item => item.Id == classId && item.IsActive,
+                cancellationToken)
+            : null;
+        if (schoolClass is null)
+        {
+            return NotFound("ক্লাসটি খুঁজে পাওয়া যায়নি।");
+        }
+
+        schoolClass.IsActive = false;
+        await database.Holds
+            .Where(hold => hold.ClassId == classId && hold.Status == HoldStatuses.Held)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(hold => hold.Status, HoldStatuses.Expired),
+                cancellationToken);
+        await database.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return Results.NoContent();
+    }
+
     private static async Task<IResult> GetClassesAsync(
         SchoolDbContext database,
         CancellationToken cancellationToken)
@@ -69,6 +149,7 @@ public static partial class SchoolAdmissionEndpoints
 
         var classes = await database.Classes
             .AsNoTracking()
+            .Where(schoolClass => schoolClass.IsActive)
             .OrderBy(schoolClass => schoolClass.Name)
             .ToListAsync(cancellationToken);
         var seatCounts = await database.Holds
@@ -91,7 +172,7 @@ public static partial class SchoolAdmissionEndpoints
     {
         await ExpireOverdueHoldsAsync(database, DateTimeOffset.UtcNow, cancellationToken);
         var schoolClass = await database.Classes.AsNoTracking()
-            .SingleOrDefaultAsync(item => item.Id == classId, cancellationToken);
+            .SingleOrDefaultAsync(item => item.Id == classId && item.IsActive, cancellationToken);
         if (schoolClass is null)
         {
             return NotFound("ক্লাসটি খুঁজে পাওয়া যায়নি।");
@@ -122,7 +203,9 @@ public static partial class SchoolAdmissionEndpoints
         await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
         var classExists = await LockRowAsync(database, "Classes", classId, cancellationToken);
         var schoolClass = classExists
-            ? await database.Classes.SingleOrDefaultAsync(item => item.Id == classId, cancellationToken)
+            ? await database.Classes.SingleOrDefaultAsync(
+                item => item.Id == classId && item.IsActive,
+                cancellationToken)
             : null;
         if (schoolClass is null)
         {
@@ -299,7 +382,7 @@ public static partial class SchoolAdmissionEndpoints
         await ExpireStudentHoldsAsync(database, studentId, DateTimeOffset.UtcNow, cancellationToken);
         var holds = await database.Holds
             .AsNoTracking()
-            .Where(hold => hold.StudentId == studentId)
+            .Where(hold => hold.StudentId == studentId && hold.Class.IsActive)
             .OrderByDescending(hold => hold.Status == HoldStatuses.Held)
             .ThenByDescending(hold => hold.CreatedAt)
             .Select(hold => new MyHoldResponse(
@@ -421,7 +504,7 @@ public static partial class SchoolAdmissionEndpoints
     private static IResult Conflict(string message) =>
         Results.Json(new ErrorResponse(message), statusCode: StatusCodes.Status409Conflict);
 
-    public sealed record CreateClassRequest(string? Name, int TotalSeats);
+    public sealed record ClassWriteRequest(string? Name, int TotalSeats);
 
     public sealed record CreatedClassResponse(string Id, string Name, int TotalSeats);
 

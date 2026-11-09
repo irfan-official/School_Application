@@ -41,6 +41,8 @@ Hold endpoints require the `X-Student-Id` header containing a 17-digit student b
 | `POST` | `/classes` | Create a class |
 | `GET` | `/classes` | List classes and seat counts |
 | `GET` | `/classes/{classId}` | Get a class and its seat counts |
+| `PUT` | `/classes/{classId}` | Update a class name and capacity |
+| `DELETE` | `/classes/{classId}` | Archive a class |
 | `POST` | `/classes/{classId}/holds` | Apply and temporarily hold a seat |
 | `GET` | `/holds/{holdId}` | Get a hold's status |
 | `POST` | `/holds/{holdId}/confirm` | Simulate payment and confirm admission |
@@ -48,6 +50,8 @@ Hold endpoints require the `X-Student-Id` header containing a 17-digit student b
 | `GET` | `/me/holds` | List the student's holds |
 
 Set `HOLD_DURATION_SECONDS` to change the default 600-second hold duration. Set `ConnectionStrings__DefaultConnection` to connect the backend to another PostgreSQL database.
+
+Class updates require both `name` and `totalSeats`, as with class creation. Capacity cannot be reduced below the number of held and confirmed seats. Deleting a class archives it rather than removing its database record: archived classes disappear from the available class list and Admin list, and their application history is retained but hidden from the student application list. Any outstanding `HELD` applications are expired when a class is archived; confirmed history remains stored. The backend adds the archive flag to an existing `Classes` table at startup if needed.
 
 ## Frontend checks
 

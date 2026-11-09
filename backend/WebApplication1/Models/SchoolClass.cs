@@ -8,5 +8,7 @@ public sealed class SchoolClass
 
     public int TotalSeats { get; set; }
 
+    public bool IsActive { get; set; } = true;
+
     public ICollection<AdmissionHold> Holds { get; } = new List<AdmissionHold>();
 }

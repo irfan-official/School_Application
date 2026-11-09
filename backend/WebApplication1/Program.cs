@@ -34,6 +34,8 @@ await using (var scope = app.Services.CreateAsyncScope())
 {
     var database = scope.ServiceProvider.GetRequiredService<SchoolDbContext>();
     await database.Database.EnsureCreatedAsync();
+    await database.Database.ExecuteSqlRawAsync(
+        """ALTER TABLE "Classes" ADD COLUMN IF NOT EXISTS "IsActive" boolean NOT NULL DEFAULT TRUE;""");
 }
 
 app.UseCors();

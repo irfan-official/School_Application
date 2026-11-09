@@ -6,7 +6,11 @@ function Icon({ name, size = 20 }) {
         grid: <><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></>,
         book: <><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21z" /><path d="M4 5.5v13A2.5 2.5 0 0 1 6.5 16H20M8 7h8" /></>,
         users: <><path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="10" cy="7" r="4" /><path d="M20 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></>,
+        user: <><circle cx="12" cy="8" r="4" /><path d="M5 21v-1a7 7 0 0 1 14 0v1" /><path d="m17 5 1.2-2L19.5 5l2.2.3-1.6 1.6.4 2.2-2-1-2 1 .4-2.2-1.6-1.6z" /></>,
         plus: <><path d="M12 5v14M5 12h14" /></>,
+        edit: <><path d="m16 5 3 3" /><path d="M4 20h4l11-11a2.1 2.1 0 0 0-4-4L4 16z" /></>,
+        trash: <><path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6" /><path d="M10 11v5m4-5v5" /></>,
+        archive: <><path d="M3 4h18v5H3z" /><path d="M5 9v11h14V9M10 13h4" /></>,
         search: <><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></>,
         clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
         check: <path d="m5 12 4 4L19 6" />,
@@ -51,9 +55,22 @@ function statusLabel(status) {
     }[status] ?? status
 }
 
-function AdminSection({ classes, totalAvailable, heldCount, confirmedCount, onCreateClass, busyAction }) {
+function AdminSection({
+    classes,
+    totalAvailable,
+    heldCount,
+    confirmedCount,
+    onCreateClass,
+    onUpdateClass,
+    onDeleteClass,
+    busyAction,
+}) {
     const [className, setClassName] = useState('')
     const [totalSeats, setTotalSeats] = useState('')
+    const [editingClassId, setEditingClassId] = useState('')
+    const [editingName, setEditingName] = useState('')
+    const [editingSeats, setEditingSeats] = useState('')
+    const [deletingClassId, setDeletingClassId] = useState('')
 
     const submitClass = async (event) => {
         event.preventDefault()
@@ -62,6 +79,19 @@ function AdminSection({ classes, totalAvailable, heldCount, confirmedCount, onCr
             setClassName('')
             setTotalSeats('')
         }
+    }
+
+    const startEditing = (schoolClass) => {
+        setEditingClassId(schoolClass.id)
+        setEditingName(schoolClass.name)
+        setEditingSeats(String(schoolClass.totalSeats))
+        setDeletingClassId('')
+    }
+
+    const submitClassEdit = async (event, schoolClass) => {
+        event.preventDefault()
+        const updated = await onUpdateClass(schoolClass.id, editingName, editingSeats)
+        if (updated) setEditingClassId('')
     }
 
     return (
@@ -90,16 +120,16 @@ function AdminSection({ classes, totalAvailable, heldCount, confirmedCount, onCr
                     <p className="admin-description">ক্লাস বা শিফটের নাম এবং মোট আসনসংখ্যা দিয়ে নতুন ভর্তি স্লট যোগ করুন।</p>
                     <form className="admin-create-form" onSubmit={submitClass}>
                         <label>ক্লাস / শিফটের নাম
-                            <input required maxLength={70} value={className} onChange={(event) => setClassName(event.target.value)} placeholder="যেমন: Class 6 - Morning Shift" />
+                            <input required maxLength={120} value={className} onChange={(event) => setClassName(event.target.value)} placeholder="যেমন: Class 6 - Morning Shift" />
                         </label>
                         <label>মোট আসন
                             <input required min="1" max="500" type="number" value={totalSeats} onChange={(event) => setTotalSeats(event.target.value)} placeholder="যেমন: ৪০" />
                         </label>
                         <button className="button button-primary admin-submit" type="submit" disabled={busyAction === 'create-class'}>
-                            <Icon name="plus" size={16} /> {busyAction === 'create-class' ? 'তৈরি হচ্ছে...' : 'ক্লাস তৈরি করুন'}
+                            <Icon name="plus" size={16} /> {busyAction === 'create-class' ? 'Creating...' : 'Create Class'}
                         </button>
                     </form>
-                    <div className="admin-demo-notice"><Icon name="spark" size={15} /> অ্যাসাইনমেন্ট অনুযায়ী Admin ব্যবহারের জন্য আলাদা লগইন প্রয়োজন নেই।</div>
+                    <div className="admin-demo-notice"><Icon name="spark" size={15} /> অ্যাসাইনমেন্ট অনুযায়ী আলাদা Admin লগইন নেই। আবেদনের ইতিহাস থাকা ক্লাস মুছে ফেলা যাবে না।</div>
                 </section>
 
                 <section className="panel admin-classes-panel">
@@ -113,6 +143,66 @@ function AdminSection({ classes, totalAvailable, heldCount, confirmedCount, onCr
                                 <span className={`class-icon class-icon-${index % 4}`}><Icon name="book" size={18} /></span>
                                 <span className="admin-class-name"><strong>{schoolClass.name}</strong><small>{schoolClass.shift} শিফট</small></span>
                                 <span className="admin-capacity"><strong>{schoolClass.availableSeats}</strong><small>খালি / {schoolClass.totalSeats}</small></span>
+                                {editingClassId === schoolClass.id ? (
+                                    <form className="admin-edit-form" onSubmit={(event) => submitClassEdit(event, schoolClass)}>
+                                        <label>ক্লাসের নাম
+                                            <input required maxLength={120} value={editingName} onChange={(event) => setEditingName(event.target.value)} />
+                                        </label>
+                                        <label>মোট আসন
+                                            <input required min="1" max="500" type="number" value={editingSeats} onChange={(event) => setEditingSeats(event.target.value)} />
+                                        </label>
+                                        <div className="admin-row-actions">
+                                            <button className="admin-action-button" type="button" onClick={() => setEditingClassId('')}>Cancel</button>
+                                            <button
+                                                className="admin-action-button primary"
+                                                type="submit"
+                                                disabled={busyAction === `update-${schoolClass.id}`}
+                                            >
+                                                {busyAction === `update-${schoolClass.id}` ? 'Saving...' : 'Save'}
+                                            </button>
+                                        </div>
+                                    </form>
+                                ) : deletingClassId === schoolClass.id ? (
+                                    <div className="admin-delete-confirm">
+                                        <span>Archive this class?</span>
+                                        <div className="admin-row-actions">
+                                            <button className="admin-action-button" type="button" onClick={() => setDeletingClassId('')}>Cancel</button>
+                                            <button
+                                                className="admin-action-button danger admin-icon-button"
+                                                type="button"
+                                                aria-label={busyAction === `delete-${schoolClass.id}` ? 'Archiving class' : 'Archive class'}
+                                                title={busyAction === `delete-${schoolClass.id}` ? 'Archiving class' : 'Archive class'}
+                                                disabled={busyAction === `delete-${schoolClass.id}`}
+                                                onClick={async () => {
+                                                    const deleted = await onDeleteClass(schoolClass.id)
+                                                    if (deleted) setDeletingClassId('')
+                                                }}
+                                            >
+                                                <Icon name="archive" size={15} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="admin-row-actions">
+                                        <button
+                                            className="admin-action-button admin-icon-button"
+                                            type="button"
+                                            aria-label={`Edit ${schoolClass.name}`}
+                                            title={`Edit ${schoolClass.name}`}
+                                            onClick={() => startEditing(schoolClass)}
+                                        ><Icon name="edit" size={15} /></button>
+                                        <button
+                                            className="admin-action-button danger admin-icon-button"
+                                            type="button"
+                                            aria-label={`Archive ${schoolClass.name}`}
+                                            title={`Archive ${schoolClass.name}`}
+                                            onClick={() => {
+                                                setDeletingClassId(schoolClass.id)
+                                                setEditingClassId('')
+                                            }}
+                                        ><Icon name="archive" size={15} /></button>
+                                    </div>
+                                )}
                             </article>
                         ))}
                         {classes.length === 0 && <div className="empty-state"><strong>এখনো কোনো ক্লাস নেই</strong><p>উপরের ফর্ম দিয়ে প্রথম ক্লাসটি তৈরি করুন।</p></div>}
@@ -131,6 +221,7 @@ function App() {
     const [classes, setClasses] = useState([])
     const [applications, setApplications] = useState([])
     const [activeTab, setActiveTab] = useState('overview')
+    const activeTabRef = useRef('overview')
     const [search, setSearch] = useState('')
     const [toast, setToast] = useState(null)
     const [busyAction, setBusyAction] = useState('')
@@ -185,52 +276,47 @@ function App() {
     }, [studentId])
 
     useEffect(() => {
-        if (activeTab === 'admin') return undefined
-
         const sections = [
             { id: 'classes', element: document.getElementById('class-section') },
             ...(isValidStudentId
                 ? [{ id: 'applications', element: document.getElementById('application-section') }]
                 : []),
         ].filter((section) => section.element)
-        const visibility = new Map()
         const updateActiveSection = () => {
-            const visibleSections = sections
+            if (activeTabRef.current === 'admin') return
+
+            const anchor = 69 + Math.min(410, window.innerHeight * 0.49)
+            const sectionsAtAnchor = sections
                 .map(({ id, element }) => {
                     const rect = element.getBoundingClientRect()
-                    const visibleHeight = Math.max(
-                        0,
-                        Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 69),
-                    )
-                    return {
-                        id,
-                        ratio: visibleHeight / Math.max(rect.height, 1),
-                        distance: Math.abs(rect.top - 120),
-                    }
+                    return { id, rect }
                 })
-                .filter((section) => section.ratio > 0)
-                .sort((left, right) => right.ratio - left.ratio || left.distance - right.distance)
+                .filter(({ rect }) => rect.top <= anchor && rect.bottom >= anchor)
 
-            setActiveTab(visibleSections[0]?.id ?? 'overview')
+            const currentSection = ['classes', 'applications'].includes(activeTabRef.current)
+                ? sectionsAtAnchor.find(({ id }) => id === activeTabRef.current)
+                : null
+            const selectedSection = currentSection ?? sectionsAtAnchor.sort(
+                (left, right) =>
+                    Math.abs((left.rect.top + left.rect.bottom) / 2 - anchor)
+                    - Math.abs((right.rect.top + right.rect.bottom) / 2 - anchor),
+            )[0]
+            const nextTab = selectedSection?.id ?? (window.scrollY <= 1 ? 'overview' : activeTabRef.current)
+
+            activeTabRef.current = nextTab
+            setActiveTab(nextTab)
         }
 
-        const observer = new IntersectionObserver(
-            (entries) => {
-                entries.forEach((entry) => visibility.set(entry.target.id, entry.isIntersecting))
-                if (visibility.size) updateActiveSection()
-            },
-            { rootMargin: '-69px 0px 0px 0px', threshold: [0, 0.1, 0.25, 0.5, 0.75, 1] },
-        )
-        sections.forEach(({ element }) => observer.observe(element))
         window.addEventListener('scroll', updateActiveSection, { passive: true })
+        window.addEventListener('resize', updateActiveSection)
         const initialUpdate = window.setTimeout(updateActiveSection, 0)
 
         return () => {
-            observer.disconnect()
             window.removeEventListener('scroll', updateActiveSection)
+            window.removeEventListener('resize', updateActiveSection)
             window.clearTimeout(initialUpdate)
         }
-    }, [activeTab, isValidStudentId])
+    }, [isValidStudentId])
 
     useEffect(() => () => window.clearTimeout(toastTimeout.current), [])
 
@@ -257,6 +343,18 @@ function App() {
         )
     }
 
+    const handleUpdateClass = async (classId, name, seats) => performAction(
+        `update-${classId}`,
+        () => schoolApi.updateClass(classId, { name, totalSeats: seats }),
+        'ক্লাসের তথ্য সফলভাবে হালনাগাদ হয়েছে।',
+    )
+
+    const handleDeleteClass = async (classId) => performAction(
+        `delete-${classId}`,
+        () => schoolApi.deleteClass(classId),
+        'Class archived. It is no longer available for admission.',
+    )
+
     const filteredClasses = classes.filter((schoolClass) =>
         schoolClass.name.toLowerCase().includes(search.trim().toLowerCase()),
     )
@@ -271,7 +369,7 @@ function App() {
         { id: 'overview', label: 'ওভারভিউ', icon: 'grid' },
         { id: 'classes', label: 'সকল ক্লাস', icon: 'book' },
         { id: 'applications', label: 'আমার আবেদন', icon: 'users', badge: heldCount || null },
-        { id: 'admin', label: 'Admin', icon: 'seat' },
+        { id: 'admin', label: 'Admin', icon: 'user' },
     ]
 
     const goTo = (tab) => {
@@ -281,9 +379,10 @@ function App() {
             setShowIdModal(true)
             return
         }
+        activeTabRef.current = tab
         setActiveTab(tab)
-        if (tab === 'classes') document.getElementById('class-section')?.scrollIntoView({ behavior: 'smooth' })
-        if (tab === 'applications') document.getElementById('application-section')?.scrollIntoView({ behavior: 'smooth' })
+        if (tab === 'classes') document.getElementById('class-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        if (tab === 'applications') document.getElementById('application-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
         if (tab === 'overview') window.scrollTo({ top: 0, behavior: 'smooth' })
     }
 
@@ -297,9 +396,10 @@ function App() {
         setStudentId(modalStudentId)
         setShowIdModal(false)
         setModalIdError('')
+        activeTabRef.current = 'applications'
         setActiveTab('applications')
         window.setTimeout(() => {
-            document.getElementById('application-section')?.scrollIntoView({ behavior: 'smooth' })
+            document.getElementById('application-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
         }, 0)
     }
 
@@ -343,7 +443,7 @@ function App() {
                         title="Admin"
                         onClick={() => goTo('admin')}
                     >
-                        <Icon name="seat" size={19} />
+                        <Icon name="user" size={19} />
                         <span>Admin</span>
                     </button>
                 </nav>
@@ -395,6 +495,8 @@ function App() {
                             heldCount={totalHeldSeats}
                             confirmedCount={totalConfirmedSeats}
                             onCreateClass={handleCreateClass}
+                            onUpdateClass={handleUpdateClass}
+                            onDeleteClass={handleDeleteClass}
                             busyAction={busyAction}
                         />
                     ) : (
