@@ -1,0 +1,34 @@
+# .NET build outputs
+[Bb]in/
+[Oo]bj/
+artifacts/
+publish/
+
+# Visual Studio and IDE files
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.idea/
+*.DotSettings.user
+
+# Test and coverage output
+[Tt]est[Rr]esult*/
+coverage/
+coverage*.json
+coverage*.xml
+*.coverage
+*.coveragexml
+
+# Local configuration and secrets
+appsettings.Development.json
+appsettings.Local.json
+*.env
+*.env.*
+!.env.example
+!.env.template
+
+# NuGet packages
+*.nupkg
+*.snupkg

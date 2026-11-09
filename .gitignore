@@ -20,5 +20,136 @@ dist-ssr
 *.suo
 *.ntvs*
 *.njsproj
-*.sln
 *.sw?
+
+## ==========================================
+## .NET 8 / C# Build & Compiler Artifacts
+## ==========================================
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Ll]og/
+[Ll]ogs/
+artifacts/
+[Pp]ackages/
+!**/[Pp]ackages/build/
+
+## ==========================================
+## NuGet & Dependencies
+## ==========================================
+*.nupkg
+*.snupkg
+*.nuget.props
+*.nuget.targets
+project.lock.json
+project.fragment.lock.json
+
+## ==========================================
+## Secrets & Local Environment Configuration
+## ==========================================
+*.env
+*.env.*
+!.env.example
+!.env.template
+appsettings.Development.json
+appsettings.Local.json
+**/Properties/launchSettings.json
+
+## ==========================================
+## Visual Studio IDE & User Settings
+## ==========================================
+.vs/
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+*.userprefs
+*.rsuser
+*_i.c
+*_p.c
+*.ilk
+*.meta
+*.obj
+*.pch
+*.pdb
+*.pgc
+*.pgd
+*.rsp
+*.sbr
+*.tlb
+*.tli
+*.tlh
+*.tmp
+*.tmp_proj
+*.log
+*.vsix
+
+## ==========================================
+## VS Code (Visual Studio Code) Settings
+## ==========================================
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+.history/
+*.code-workspace
+
+## ==========================================
+## JetBrains Rider / Resharper
+## ==========================================
+.idea/
+*.sln.iml
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+## ==========================================
+## Testing & Code Coverage Results
+## ==========================================
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.VisualState.xml
+TestResult.xml
+coverage*.json
+coverage*.xml
+coverage*.info
+*.coverage
+*.coveragexml
+BenchmarkDotNet.Artifacts/
+
+## ==========================================
+## Web & ASP.NET Core Publishing
+## ==========================================
+publish/
+*.[Pp]ublish.xml
+*.azurePubxml
+*.pubxml
+*.publishproj
+PublishScripts/
+
+## ==========================================
+## OS-Generated Files
+## ==========================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+[Dd]esktop.ini
+$RECYCLE.BIN/

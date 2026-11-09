@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { mockApi } from './api/mockApi'
+import { schoolApi } from './api/schoolApi'
 
 function Icon({ name, size = 20 }) {
     const paths = {
@@ -99,7 +99,7 @@ function AdminSection({ classes, totalAvailable, heldCount, confirmedCount, onCr
                             <Icon name="plus" size={16} /> {busyAction === 'create-class' ? 'তৈরি হচ্ছে...' : 'ক্লাস তৈরি করুন'}
                         </button>
                     </form>
-                    <div className="admin-demo-notice"><Icon name="spark" size={15} /> Mock Admin mode — এই পর্যায়ে আলাদা লগইন/অনুমতি যাচাই নেই।</div>
+                    <div className="admin-demo-notice"><Icon name="spark" size={15} /> অ্যাসাইনমেন্ট অনুযায়ী Admin ব্যবহারের জন্য আলাদা লগইন প্রয়োজন নেই।</div>
                 </section>
 
                 <section className="panel admin-classes-panel">
@@ -124,7 +124,7 @@ function AdminSection({ classes, totalAvailable, heldCount, confirmedCount, onCr
 }
 
 function App() {
-    const [studentId, setStudentId] = useState('')
+    const [studentId, setStudentId] = useState(() => localStorage.getItem('school-admission-student-id') ?? '')
     const [showIdModal, setShowIdModal] = useState(false)
     const [modalStudentId, setModalStudentId] = useState('')
     const [modalIdError, setModalIdError] = useState('')
@@ -135,7 +135,7 @@ function App() {
     const [toast, setToast] = useState(null)
     const [busyAction, setBusyAction] = useState('')
     const [now, setNow] = useState(0)
-    const requestInFlight = useRef(false)
+    const requestSequence = useRef(0)
     const toastTimeout = useRef(null)
     const isValidStudentId = /^\d{17}$/.test(studentId)
 
@@ -146,19 +146,19 @@ function App() {
     }, [])
 
     const refreshData = useCallback(async () => {
-        if (requestInFlight.current) return
-        requestInFlight.current = true
+        const requestId = ++requestSequence.current
         try {
             const [classResults, applicationResults] = await Promise.all([
-                mockApi.getClasses(studentId),
-                /^\d{17}$/.test(studentId) ? mockApi.getApplications(studentId) : Promise.resolve([]),
+                schoolApi.getClasses(),
+                /^\d{17}$/.test(studentId) ? schoolApi.getApplications(studentId) : Promise.resolve([]),
             ])
+            if (requestId !== requestSequence.current) return
             setClasses(classResults)
             setApplications(applicationResults)
         } catch (error) {
-            setToast({ message: error.message || 'তথ্য লোড করা যায়নি। আবার চেষ্টা করুন।', type: 'error' })
-        } finally {
-            requestInFlight.current = false
+            if (requestId === requestSequence.current) {
+                setToast({ message: error.message || 'তথ্য লোড করা যায়নি। আবার চেষ্টা করুন।', type: 'error' })
+            }
         }
     }, [studentId])
 
@@ -179,6 +179,10 @@ function App() {
             window.clearInterval(timerId)
         }
     }, [])
+
+    useEffect(() => {
+        localStorage.setItem('school-admission-student-id', studentId)
+    }, [studentId])
 
     useEffect(() => {
         if (activeTab === 'admin') return undefined
@@ -248,7 +252,7 @@ function App() {
     const handleCreateClass = async (name, seats) => {
         return performAction(
             'create-class',
-            () => mockApi.createClass(studentId, { name, totalSeats: seats }),
+            () => schoolApi.createClass(studentId, { name, totalSeats: seats }),
             'নতুন ক্লাস সফলভাবে তৈরি হয়েছে।',
         )
     }
@@ -260,6 +264,8 @@ function App() {
     const confirmedCount = applications.filter(
         (application) => application.status === 'CONFIRMED',
     ).length
+    const totalHeldSeats = classes.reduce((total, schoolClass) => total + schoolClass.heldSeats, 0)
+    const totalConfirmedSeats = classes.reduce((total, schoolClass) => total + schoolClass.confirmedSeats, 0)
     const totalAvailable = classes.reduce((total, schoolClass) => total + schoolClass.availableSeats, 0)
     const navItems = [
         { id: 'overview', label: 'ওভারভিউ', icon: 'grid' },
@@ -386,8 +392,8 @@ function App() {
                         <AdminSection
                             classes={classes}
                             totalAvailable={totalAvailable}
-                            heldCount={heldCount}
-                            confirmedCount={confirmedCount}
+                            heldCount={totalHeldSeats}
+                            confirmedCount={totalConfirmedSeats}
                             onCreateClass={handleCreateClass}
                             busyAction={busyAction}
                         />
@@ -475,7 +481,7 @@ function App() {
                                                         className={`apply-button ${myApplication || schoolClass.availableSeats === 0 ? 'disabled' : ''}`}
                                                         disabled={Boolean(myApplication) || schoolClass.availableSeats === 0 || busyAction === schoolClass.id}
                                                         onClick={() => isValidStudentId
-                                                            ? performAction(schoolClass.id, () => mockApi.applyForClass(studentId, schoolClass.id), 'আপনার আসন ৫ মিনিটের জন্য হোল্ড করা হয়েছে।')
+                                                            ? performAction(schoolClass.id, () => schoolApi.applyForClass(studentId, schoolClass.id), 'আপনার আসন নির্ধারিত সময়ের জন্য হোল্ড করা হয়েছে।')
                                                             : goTo('applications')}
                                                     >
                                                         {myApplication ? (myApplication.status === 'HELD' ? 'আবেদন করা' : 'ভর্তি নিশ্চিত') : 'আবেদন করুন'}{!myApplication && <Icon name="arrow" size={15} />}
@@ -516,14 +522,14 @@ function App() {
                                                                 <button
                                                                     className="button button-pay"
                                                                     disabled={expiredLocally || busyAction === application.id}
-                                                                    onClick={() => performAction(application.id, () => mockApi.confirmApplication(studentId, application.id), 'সফল! আপনার ভর্তি নিশ্চিত হয়েছে।')}
+                                                                    onClick={() => performAction(application.id, () => schoolApi.confirmApplication(studentId, application.id), 'সফল! আপনার ভর্তি নিশ্চিত হয়েছে।')}
                                                                 ><Icon name="wallet" size={16} /> ভর্তি ফি দিন</button>
-                                                                <button className="cancel-button" disabled={busyAction === application.id} onClick={() => performAction(application.id, () => mockApi.cancelApplication(studentId, application.id), 'আপনার আবেদন বাতিল করা হয়েছে।')}>বাতিল</button>
+                                                                <button className="cancel-button" disabled={busyAction === application.id} onClick={() => performAction(application.id, () => schoolApi.cancelApplication(studentId, application.id), 'আপনার আবেদন বাতিল করা হয়েছে।')}>বাতিল</button>
                                                             </div>
                                                         )}
                                                         {application.status === 'CONFIRMED' && (
                                                             <div className="confirmed-note"><Icon name="check" size={15} /> ভর্তি সফলভাবে নিশ্চিত হয়েছে
-                                                                <button className="cancel-button" disabled={busyAction === application.id} onClick={() => performAction(application.id, () => mockApi.cancelApplication(studentId, application.id), 'আপনার আবেদন বাতিল করা হয়েছে।')}>বাতিল</button>
+                                                                <button className="cancel-button" disabled={busyAction === application.id} onClick={() => performAction(application.id, () => schoolApi.cancelApplication(studentId, application.id), 'আপনার আবেদন বাতিল করা হয়েছে।')}>বাতিল</button>
                                                             </div>
                                                         )}
                                                         {['EXPIRED', 'CANCELLED'].includes(application.status) && <div className="closed-note">{application.status === 'EXPIRED' ? 'হোল্ডের সময়সীমা শেষ হয়েছে।' : 'এই আবেদনটি বাতিল করা হয়েছে।'}</div>}
