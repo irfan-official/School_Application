@@ -59,7 +59,10 @@ Class updates require both `name` and `totalSeats`, as with class creation. Capa
 cd frontend
 npm run lint
 npm run build
+npm test
 ```
+
+The frontend API client tests verify response mapping, student-ID headers, and local input validation.
 
 ## Backend integration tests
 
@@ -68,3 +71,5 @@ The backend tests use a disposable PostgreSQL 15 container, so Docker Desktop mu
 ```powershell
 dotnet test backend\WebApplication1.sln
 ```
+
+PostgreSQL is the coordination point for seat allocation. Separate backend processes sharing the same database serialize requests for a class through a transaction-scoped row lock; the API processes must not use separate databases.
