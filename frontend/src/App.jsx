@@ -277,48 +277,54 @@ function App() {
     }, [studentId])
 
     useEffect(() => {
-        const sections = [
-            { id: 'classes', element: document.getElementById('class-section') },
-            ...(isValidStudentId
-                ? [
-                    { id: 'application', element: document.getElementById('application-section') },
-                    { id: 'history', element: document.getElementById('application-history-section') },
-                ]
-                : []),
-        ].filter((section) => section.element)
+        const sectionTargets = [
+            { id: 'classes', elementId: 'class-section' },
+            { id: 'application', elementId: 'application-section' },
+            { id: 'history', elementId: 'application-history-section' },
+        ]
         const updateActiveSection = () => {
             if (activeTabRef.current === 'admin') return
+            if (window.scrollY <= 1) {
+                activeTabRef.current = 'overview'
+                setActiveTab('overview')
+                return
+            }
 
-            const anchor = 69 + window.innerHeight * 0.44
-            const sectionsAtAnchor = sections
+            const sections = sectionTargets
+                .map(({ id, elementId }) => ({ id, element: document.getElementById(elementId) }))
+                .filter((section) => section.element)
+            const atPageBottom = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2
+            const anchor = atPageBottom
+                ? window.innerHeight - 100
+                : 69 + Math.min(100, window.innerHeight * 0.15)
+            const measuredSections = sections
                 .map(({ id, element }) => {
                     const rect = element.getBoundingClientRect()
                     return { id, rect }
                 })
+            const sectionsAtAnchor = measuredSections
                 .filter(({ rect }) => rect.top <= anchor && rect.bottom >= anchor)
 
             const currentSection = ['classes', 'application', 'history'].includes(activeTabRef.current)
-                ? sectionsAtAnchor.find(({ id }) => id === activeTabRef.current)
+                ? measuredSections.find(({ id }) => id === activeTabRef.current)
                 : null
-            const currentSectionIsRelevant = currentSection && (
-                Math.abs(currentSection.rect.top - anchor) <= 80
-                || sectionsAtAnchor.some(({ id, rect }) =>
-                    id !== currentSection.id && Math.abs(rect.top - currentSection.rect.top) <= 24,
-                )
-            )
-            const atPageBottom = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2
-            const historyAtPageBottom = atPageBottom && sections
-                .find(({ id }) => id === 'history')
-            const selectedSection = (historyAtPageBottom ? { id: 'history' } : null)
-                ?? (currentSectionIsRelevant ? currentSection : null)
-                ?? sectionsAtAnchor.sort(
-                (left, right) =>
-                    Math.abs(left.rect.top - anchor) - Math.abs(right.rect.top - anchor),
-            )[0]
-            const nextTab = selectedSection?.id ?? (window.scrollY <= 1 ? 'overview' : activeTabRef.current)
+            const currentSectionIsVisible = currentSection
+                && currentSection.rect.bottom > 69
+                && currentSection.rect.top < window.innerHeight
+            const selectedSection = sectionsAtAnchor.sort((left, right) => {
+                    if (Math.abs(left.rect.top - right.rect.top) <= 24) {
+                        if (left.id === activeTabRef.current) return -1
+                        if (right.id === activeTabRef.current) return 1
+                        const priority = { classes: 0, application: 1, history: 2 }
+                        return priority[right.id] - priority[left.id]
+                    }
+                    return Math.abs(left.rect.top - anchor) - Math.abs(right.rect.top - anchor)
+                })[0]
+                ?? (currentSectionIsVisible ? currentSection : null)
+            const nextTab = selectedSection?.id ?? activeTabRef.current
 
             activeTabRef.current = nextTab
-            setActiveTab(nextTab)
+            setActiveTab((currentTab) => currentTab === nextTab ? currentTab : nextTab)
         }
 
         window.addEventListener('scroll', updateActiveSection, { passive: true })
@@ -330,7 +336,7 @@ function App() {
             window.removeEventListener('resize', updateActiveSection)
             window.clearTimeout(initialUpdate)
         }
-    }, [isValidStudentId])
+    }, [])
 
     useEffect(() => () => window.clearTimeout(toastTimeout.current), [])
 
@@ -385,10 +391,10 @@ function App() {
     const totalAvailable = classes.reduce((total, schoolClass) => total + schoolClass.availableSeats, 0)
     const navItems = [
         { id: 'overview', label: 'ওভারভিউ', icon: 'grid' },
-        { id: 'classes', label: 'সকল ক্লাস', icon: 'book' },
+        { id: 'classes', label: 'Class তালিকা', icon: 'book' },
         { id: 'application', label: 'আবেদন', icon: 'book', badge: heldCount || null },
         { id: 'history', label: 'আমার আবেদন', icon: 'users' },
-        { id: 'admin', label: 'Admin', icon: 'user' },
+        { id: 'admin', label: 'Class তৈরি (school admin)', icon: 'user' },
     ]
 
     const goTo = (tab) => {
@@ -401,9 +407,9 @@ function App() {
         }
         activeTabRef.current = tab
         setActiveTab(tab)
-        if (tab === 'classes') document.getElementById('class-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        if (tab === 'application') document.getElementById('application-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        if (tab === 'history') document.getElementById('application-history-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        if (tab === 'classes') document.getElementById('class-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        if (tab === 'application') document.getElementById('application-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        if (tab === 'history') document.getElementById('application-history-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
         if (tab === 'overview') window.scrollTo({ top: 0, behavior: 'smooth' })
     }
 
@@ -435,10 +441,8 @@ function App() {
 
                 <div className="sidebar-label">মেনু</div>
                 <nav className="side-nav" aria-label="প্রধান নেভিগেশন">
-                    {navItems.filter((item) => !['admin', 'classes'].includes(item.id)).map((item) => {
-                        const isActive = item.id === 'overview'
-                            ? ['overview', 'classes'].includes(activeTab)
-                            : activeTab === item.id
+                    {navItems.filter((item) => item.id !== 'admin').map((item) => {
+                        const isActive = activeTab === item.id
 
                         return (
                         <button
@@ -457,16 +461,16 @@ function App() {
                     })}
                 </nav>
                 <div className="sidebar-label admin-nav-label">Administration</div>
-                <nav className="side-nav" aria-label="Admin navigation">
+                <nav className="side-nav" aria-label="School administration navigation">
                     <button
                         className={`nav-item ${activeTab === 'admin' ? 'active' : ''}`}
-                        aria-label="Admin"
+                        aria-label="Class তৈরি (school admin)"
                         aria-current={activeTab === 'admin' ? 'page' : undefined}
-                        title="Admin"
+                        title="Class তৈরি (school admin)"
                         onClick={() => goTo('admin')}
                     >
                         <Icon name="user" size={19} />
-                        <span>Admin</span>
+                        <span>Class তৈরি (school admin)</span>
                     </button>
                 </nav>
 
@@ -572,7 +576,7 @@ function App() {
                             <section className="content-grid">
                                 <div className="panel class-panel" id="class-section">
                                     <div className="panel-heading">
-                                        <div><span className="section-kicker">আপনার পছন্দ বেছে নিন</span><h2>ভর্তির জন্য ক্লাস</h2></div>
+                                        <div><span className="section-kicker">আপনার পছন্দ বেছে নিন</span><h2>Class তালিকা</h2></div>
                                         <button className="text-link" onClick={() => goTo('classes')}>সব ক্লাস <Icon name="arrow" size={15} /></button>
                                     </div>
                                     <div className="class-toolbar">
