@@ -22,7 +22,7 @@ services:
     environment:
       ConnectionStrings__DefaultConnection: "Host=db;Database=school_db;Username=postgres;Password=${POSTGRES_PASSWORD:-school_dev_password}"
       ASPNETCORE_URLS: "http://+:8080"
-      HOLD_DURATION_SECONDS: "600"
+      HOLD_DURATION_SECONDS: ${HOLD_DURATION_SECONDS:-600}
     depends_on:
       db:
         condition: service_healthy

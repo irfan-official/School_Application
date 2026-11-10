@@ -3,7 +3,7 @@
 ## Run the full application with Docker
 
 1. Install and start Docker Desktop.
-2. From the repository root, copy `.env.example` to `.env` if you want to configure the Compose variables.
+2. From the repository root, copy `.env.example` to `.env` if you want to configure the Compose variables. Set `HOLD_DURATION_SECONDS` there to override the default 600-second hold duration (for example, `HOLD_DURATION_SECONDS=30` for testing).
 3. Start the database, .NET API, and React app:
 
    ```powershell
@@ -49,7 +49,7 @@ Hold endpoints require the `X-Student-Id` header containing a 17-digit student b
 | `DELETE` | `/holds/{holdId}` | Cancel a hold or confirmed admission |
 | `GET` | `/me/holds` | List the student's holds |
 
-Set `HOLD_DURATION_SECONDS` to change the default 600-second hold duration. Set `ConnectionStrings__DefaultConnection` to connect the backend to another PostgreSQL database.
+Set `HOLD_DURATION_SECONDS` to change the default 600-second hold duration. It is measured in seconds and must be a positive integer. With Docker Compose, configure it in the root `.env` file; when running the backend directly, set it in the backend process environment. Set `ConnectionStrings__DefaultConnection` to connect the backend to another PostgreSQL database.
 
 Class updates require both `name` and `totalSeats`, as with class creation. Capacity cannot be reduced below the number of held and confirmed seats. Deleting a class archives it rather than removing its database record: archived classes disappear from the available class list and Admin list, and their application history is retained but hidden from the student application list. Any outstanding `HELD` applications are expired when a class is archived; confirmed history remains stored. The backend adds the archive flag to an existing `Classes` table at startup if needed.
 
@@ -59,4 +59,12 @@ Class updates require both `name` and `totalSeats`, as with class creation. Capa
 cd frontend
 npm run lint
 npm run build
+```
+
+## Backend integration tests
+
+The backend tests use a disposable PostgreSQL 15 container, so Docker Desktop must be running. They exercise seat capacity, student ownership, idempotent confirmation, and concurrent requests for the last seat without touching the application database.
+
+```powershell
+dotnet test backend\WebApplication1.sln
 ```

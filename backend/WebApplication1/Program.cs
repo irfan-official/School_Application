@@ -43,3 +43,7 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 app.MapSchoolAdmissionEndpoints();
 
 app.Run();
+
+public partial class Program
+{
+}
