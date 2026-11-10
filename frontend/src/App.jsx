@@ -218,6 +218,7 @@ function App() {
     const [showIdModal, setShowIdModal] = useState(false)
     const [modalStudentId, setModalStudentId] = useState('')
     const [modalIdError, setModalIdError] = useState('')
+    const [idModalReturnTab, setIdModalReturnTab] = useState('application')
     const [classes, setClasses] = useState([])
     const [applications, setApplications] = useState([])
     const [activeTab, setActiveTab] = useState('overview')
@@ -279,13 +280,16 @@ function App() {
         const sections = [
             { id: 'classes', element: document.getElementById('class-section') },
             ...(isValidStudentId
-                ? [{ id: 'applications', element: document.getElementById('application-section') }]
+                ? [
+                    { id: 'application', element: document.getElementById('application-section') },
+                    { id: 'history', element: document.getElementById('application-history-section') },
+                ]
                 : []),
         ].filter((section) => section.element)
         const updateActiveSection = () => {
             if (activeTabRef.current === 'admin') return
 
-            const anchor = 69 + Math.min(410, window.innerHeight * 0.49)
+            const anchor = 69 + window.innerHeight * 0.44
             const sectionsAtAnchor = sections
                 .map(({ id, element }) => {
                     const rect = element.getBoundingClientRect()
@@ -293,13 +297,23 @@ function App() {
                 })
                 .filter(({ rect }) => rect.top <= anchor && rect.bottom >= anchor)
 
-            const currentSection = ['classes', 'applications'].includes(activeTabRef.current)
+            const currentSection = ['classes', 'application', 'history'].includes(activeTabRef.current)
                 ? sectionsAtAnchor.find(({ id }) => id === activeTabRef.current)
                 : null
-            const selectedSection = currentSection ?? sectionsAtAnchor.sort(
+            const currentSectionIsRelevant = currentSection && (
+                Math.abs(currentSection.rect.top - anchor) <= 80
+                || sectionsAtAnchor.some(({ id, rect }) =>
+                    id !== currentSection.id && Math.abs(rect.top - currentSection.rect.top) <= 24,
+                )
+            )
+            const atPageBottom = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2
+            const historyAtPageBottom = atPageBottom && sections
+                .find(({ id }) => id === 'history')
+            const selectedSection = (historyAtPageBottom ? { id: 'history' } : null)
+                ?? (currentSectionIsRelevant ? currentSection : null)
+                ?? sectionsAtAnchor.sort(
                 (left, right) =>
-                    Math.abs((left.rect.top + left.rect.bottom) / 2 - anchor)
-                    - Math.abs((right.rect.top + right.rect.bottom) / 2 - anchor),
+                    Math.abs(left.rect.top - anchor) - Math.abs(right.rect.top - anchor),
             )[0]
             const nextTab = selectedSection?.id ?? (window.scrollY <= 1 ? 'overview' : activeTabRef.current)
 
@@ -358,6 +372,10 @@ function App() {
     const filteredClasses = classes.filter((schoolClass) =>
         schoolClass.name.toLowerCase().includes(search.trim().toLowerCase()),
     )
+    const activeApplications = applications.filter((application) =>
+        ['HELD', 'CONFIRMED'].includes(application.status),
+    )
+    const applicationHistory = applications
     const heldCount = applications.filter((application) => application.status === 'HELD').length
     const confirmedCount = applications.filter(
         (application) => application.status === 'CONFIRMED',
@@ -368,12 +386,14 @@ function App() {
     const navItems = [
         { id: 'overview', label: 'ওভারভিউ', icon: 'grid' },
         { id: 'classes', label: 'সকল ক্লাস', icon: 'book' },
-        { id: 'applications', label: 'আমার আবেদন', icon: 'users', badge: heldCount || null },
+        { id: 'application', label: 'আবেদন', icon: 'book', badge: heldCount || null },
+        { id: 'history', label: 'আমার আবেদন', icon: 'users' },
         { id: 'admin', label: 'Admin', icon: 'user' },
     ]
 
     const goTo = (tab) => {
-        if (tab === 'applications' && !isValidStudentId) {
+        if (['application', 'history'].includes(tab) && !isValidStudentId) {
+            setIdModalReturnTab(tab)
             setModalStudentId(studentId)
             setModalIdError('')
             setShowIdModal(true)
@@ -382,7 +402,8 @@ function App() {
         activeTabRef.current = tab
         setActiveTab(tab)
         if (tab === 'classes') document.getElementById('class-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        if (tab === 'applications') document.getElementById('application-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        if (tab === 'application') document.getElementById('application-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        if (tab === 'history') document.getElementById('application-history-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
         if (tab === 'overview') window.scrollTo({ top: 0, behavior: 'smooth' })
     }
 
@@ -396,10 +417,11 @@ function App() {
         setStudentId(modalStudentId)
         setShowIdModal(false)
         setModalIdError('')
-        activeTabRef.current = 'applications'
-        setActiveTab('applications')
+        activeTabRef.current = idModalReturnTab
+        setActiveTab(idModalReturnTab)
         window.setTimeout(() => {
-            document.getElementById('application-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            document.getElementById(idModalReturnTab === 'history' ? 'application-history-section' : 'application-section')
+                ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
         }, 0)
     }
 
@@ -584,7 +606,7 @@ function App() {
                                                         disabled={Boolean(myApplication) || schoolClass.availableSeats === 0 || busyAction === schoolClass.id}
                                                         onClick={() => isValidStudentId
                                                             ? performAction(schoolClass.id, () => schoolApi.applyForClass(studentId, schoolClass.id), 'আপনার আসন নির্ধারিত সময়ের জন্য হোল্ড করা হয়েছে।')
-                                                            : goTo('applications')}
+                                                            : goTo('application')}
                                                     >
                                                         {myApplication ? (myApplication.status === 'HELD' ? 'আবেদন করা' : 'ভর্তি নিশ্চিত') : 'আবেদন করুন'}{!myApplication && <Icon name="arrow" size={15} />}
                                                     </button>
@@ -598,16 +620,16 @@ function App() {
 
                                 <aside className="panel application-panel" id="application-section">
                                     <div className="panel-heading application-heading">
-                                        <div><span className="section-kicker">আপনার ভর্তি অগ্রগতি</span><h2>আমার আবেদন</h2></div>
-                                        <span className="app-total">{applications.length}</span>
+                                        <div><span className="section-kicker">চলমান আবেদনের অবস্থা</span><h2>আবেদন</h2></div>
+                                        <span className="app-total">{activeApplications.length}</span>
                                     </div>
                                     {!isValidStudentId ? (
-                                        <div className="empty-state compact"><span className="empty-icon"><Icon name="users" size={21} /></span><strong>আবেদন দেখতে Student ID প্রয়োজন</strong><p>আপনার ১৭ অঙ্কের জন্ম নিবন্ধন নম্বর দিয়ে পরিচয় যাচাই করুন।</p><button className="text-link" onClick={() => goTo('applications')}>Student ID দিন <Icon name="arrow" size={14} /></button></div>
-                                    ) : applications.length === 0 ? (
-                                        <div className="empty-state compact"><span className="empty-icon"><Icon name="book" size={21} /></span><strong>এখনো কোনো আবেদন নেই</strong><p>পছন্দের ক্লাসে আবেদন করলে এখানে দেখা যাবে।</p><button className="text-link" onClick={() => goTo('classes')}>ক্লাস বেছে নিন <Icon name="arrow" size={14} /></button></div>
+                                        <div className="empty-state compact"><span className="empty-icon"><Icon name="users" size={21} /></span><strong>আবেদন দেখতে Student ID প্রয়োজন</strong><p>আপনার ১৭ অঙ্কের জন্ম নিবন্ধন নম্বর দিয়ে পরিচয় যাচাই করুন।</p><button className="text-link" onClick={() => goTo('application')}>Student ID দিন <Icon name="arrow" size={14} /></button></div>
+                                    ) : activeApplications.length === 0 ? (
+                                        <div className="empty-state compact"><span className="empty-icon"><Icon name="book" size={21} /></span><strong>কোনো চলমান আবেদন নেই</strong><p>পছন্দের ক্লাসে আবেদন করলে তার অবস্থা এখানে দেখা যাবে।</p><button className="text-link" onClick={() => goTo('classes')}>ক্লাস বেছে নিন <Icon name="arrow" size={14} /></button></div>
                                     ) : (
                                         <div className="application-list">
-                                            {applications.map((application) => {
+                                            {activeApplications.map((application) => {
                                                 const countdown = application.status === 'HELD' ? formatCountdown(application.expiresAt, now) : null
                                                 const expiredLocally = application.status === 'HELD' && countdown === '00:00'
                                                 const visibleStatus = expiredLocally ? 'EXPIRED' : application.status
@@ -634,14 +656,45 @@ function App() {
                                                                 <button className="cancel-button" disabled={busyAction === application.id} onClick={() => performAction(application.id, () => schoolApi.cancelApplication(studentId, application.id), 'আপনার আবেদন বাতিল করা হয়েছে।')}>বাতিল</button>
                                                             </div>
                                                         )}
-                                                        {['EXPIRED', 'CANCELLED'].includes(application.status) && <div className="closed-note">{application.status === 'EXPIRED' ? 'হোল্ডের সময়সীমা শেষ হয়েছে।' : 'এই আবেদনটি বাতিল করা হয়েছে।'}</div>}
                                                     </article>
                                                 )
                                             })}
                                         </div>
                                     )}
-                                    <div className="secure-note"><span><Icon name="check" size={13} /></span> আপনার তথ্য নিরাপদ ও গোপনীয়</div>
                                 </aside>
+                            </section>
+
+                            <section className="panel application-history-panel" id="application-history-section">
+                                <div className="panel-heading application-heading">
+                                    <div><span className="section-kicker">আপনার সব আবেদনের রেকর্ড</span><h2>আমার আবেদন</h2></div>
+                                    <span className="app-total">{applicationHistory.length}</span>
+                                </div>
+                                {!isValidStudentId ? (
+                                    <div className="empty-state compact"><span className="empty-icon"><Icon name="users" size={21} /></span><strong>আবেদনের ইতিহাস দেখতে Student ID প্রয়োজন</strong><p>আপনার ১৭ অঙ্কের জন্ম নিবন্ধন নম্বর দিয়ে পরিচয় যাচাই করুন।</p><button className="text-link" onClick={() => goTo('history')}>Student ID দিন <Icon name="arrow" size={14} /></button></div>
+                                ) : applicationHistory.length === 0 ? (
+                                    <div className="empty-state compact"><span className="empty-icon"><Icon name="clock" size={21} /></span><strong>এখনো কোনো আবেদন নেই</strong><p>আপনার সব আবেদন এখানে দেখা যাবে।</p></div>
+                                ) : (
+                                    <div className="application-history-list">
+                                        {applicationHistory.map((application) => (
+                                            <article className="application-card history-card" key={application.id}>
+                                                <div className="application-card-top">
+                                                    <span className={`app-status ${application.status.toLowerCase()}`}><i />{statusLabel(application.status)}</span>
+                                                </div>
+                                                <h3>{application.className}</h3>
+                                                <p className="application-id">আবেদন নং: <span>{application.id.slice(-8).toUpperCase()}</span></p>
+                                                <div className="closed-note">
+                                                    {application.status === 'EXPIRED'
+                                                        ? 'হোল্ডের সময়সীমা শেষ হয়েছে।'
+                                                        : application.status === 'CANCELLED'
+                                                            ? 'এই আবেদনটি বাতিল করা হয়েছে।'
+                                                            : application.status === 'CONFIRMED'
+                                                                ? 'ভর্তি সফলভাবে নিশ্চিত হয়েছে।'
+                                                                : 'এই আবেদনটি সক্রিয় আছে।'}
+                                                </div>
+                                            </article>
+                                        ))}
+                                    </div>
+                                )}
                             </section>
 
                             <footer className="page-footer"><span>© ২০২৫ শিক্ষাদ্বার · ভর্তি ব্যবস্থাপনা</span><span>সাহায্য লাগবে? <a href="mailto:support@example.edu">যোগাযোগ করুন</a></span></footer>
